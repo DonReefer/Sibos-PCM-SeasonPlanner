@@ -1,9 +1,9 @@
 """
-SIBOS Season Planner 2026
-Optik: helles Grau · Logo groß · Buttons grau umrandet
-Planung: Rennname | Datum | Etappen | Belegung (x/7) als Kopfzeilen
-         Rennname + Datum hochkant (90°)
-         Fußzeile unter der Tabelle
+SIBOS / PCM Season Planner 2026
+- Helles modernes Grau (Theme + CSS)
+- Planung: HTML-Tabelle mit hochkanten Rennnamen/Daten, horizontal scrollbar
+- X bearbeiten ohne schwarze Tabelle (Fahrer wählen + Rennen anhaken)
+- Eignung: berechnete Matrix Fahrer × Rennen mit Farbskala
 """
 
 import streamlit as st
@@ -16,7 +16,7 @@ from datetime import datetime
 import html as html_lib
 
 st.set_page_config(
-    page_title="SIBOS Season Planner 2026",
+    page_title="PCM Season Planner 2026",
     page_icon="🚴",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -30,189 +30,82 @@ MAX_RENNTAGE = 70
 
 st.markdown("""
 <style>
-  header[data-testid="stHeader"] {
-    background: transparent !important;
-    height: 0 !important;
-  }
-  [data-testid="stToolbar"] { display: none !important; }
-  [data-testid="stDecoration"] { display: none !important; }
-  #MainMenu { visibility: hidden; }
-  footer { visibility: hidden; }
-
-  .stApp {
-    background: #e8eaed !important;
-    color: #1f2937 !important;
-  }
-  .block-container {
-    padding-top: 1.8rem !important;
-    padding-bottom: 2rem !important;
-    max-width: 100% !important;
-  }
-
+  header[data-testid="stHeader"] { background: transparent !important; height: 0 !important; }
+  [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
+  #MainMenu, footer { visibility: hidden; }
+  .stApp { background: #e8eaed !important; color: #1f2937 !important; }
+  .block-container { padding-top: 1.6rem !important; padding-bottom: 2rem !important; max-width: 100% !important; }
   .stButton > button {
-    background: #f3f4f6 !important;
-    color: #1f2937 !important;
-    border: 1.5px solid #9ca3af !important;
-    border-radius: 8px !important;
-    font-weight: 500 !important;
-    height: 2.4rem !important;
-    box-shadow: none !important;
+    background: #f3f4f6 !important; color: #1f2937 !important;
+    border: 1.5px solid #9ca3af !important; border-radius: 8px !important;
+    font-weight: 500 !important; height: 2.4rem !important; box-shadow: none !important;
   }
-  .stButton > button:hover {
-    background: #e5e7eb !important;
-    border-color: #6b7280 !important;
-  }
+  .stButton > button:hover { background: #e5e7eb !important; border-color: #6b7280 !important; }
   .stButton > button[kind="primary"] {
-    background: #4b5563 !important;
-    border-color: #374151 !important;
-    color: #f9fafb !important;
-    font-weight: 600 !important;
-  }
-  .stButton > button[kind="primary"]:hover {
-    background: #374151 !important;
+    background: #4b5563 !important; border-color: #374151 !important; color: #f9fafb !important; font-weight: 600 !important;
   }
   .stButton > button[kind="secondary"] {
-    background: #e5e7eb !important;
-    border-color: #9ca3af !important;
-    color: #374151 !important;
-    font-size: 0.88rem !important;
+    background: #e5e7eb !important; border-color: #9ca3af !important; color: #374151 !important; font-size: 0.88rem !important;
   }
-
-  .stTextInput input, .stSelectbox [data-baseweb="select"] > div {
-    background: #f9fafb !important;
-    border: 1.5px solid #9ca3af !important;
-    border-radius: 8px !important;
-    color: #1f2937 !important;
+  .stTextInput input, .stSelectbox [data-baseweb="select"] > div,
+  .stMultiSelect [data-baseweb="select"] > div {
+    background: #f9fafb !important; border: 1.5px solid #9ca3af !important;
+    border-radius: 8px !important; color: #1f2937 !important;
   }
-
   .stTabs [data-baseweb="tab-list"] {
-    background: #f3f4f6;
-    border-radius: 10px;
-    gap: 3px;
-    padding: 4px;
-    border: 1.5px solid #9ca3af;
+    background: #f3f4f6; border-radius: 10px; gap: 3px; padding: 4px; border: 1.5px solid #9ca3af;
   }
-  .stTabs [data-baseweb="tab"] {
-    color: #4b5563;
-    border-radius: 8px;
-    font-size: 0.88rem;
+  .stTabs [data-baseweb="tab"] { color: #4b5563; border-radius: 8px; font-size: 0.88rem; }
+  .stTabs [aria-selected="true"] { background: #4b5563 !important; color: #f9fafb !important; }
+  div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {
+    background: #f3f4f6 !important; border: 1.5px solid #9ca3af !important; border-radius: 8px !important;
   }
-  .stTabs [aria-selected="true"] {
-    background: #4b5563 !important;
-    color: #f9fafb !important;
-  }
-
-  div[data-testid="stDataFrame"],
-  div[data-testid="stDataEditor"] {
-    background: #f3f4f6 !important;
-    border: 1.5px solid #9ca3af !important;
-    border-radius: 8px !important;
-  }
-
   .import-hint {
-    background: #f3f4f6;
-    border: 1.5px solid #9ca3af;
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 0.9rem;
-    color: #374151;
-    margin-top: 8px;
+    background: #f3f4f6; border: 1.5px solid #9ca3af; border-radius: 10px;
+    padding: 12px 14px; font-size: 0.9rem; color: #374151; margin-top: 8px;
   }
-
   .plan-wrap {
-    overflow-x: auto;
-    overflow-y: visible;
-    border: 1.5px solid #9ca3af;
-    border-radius: 8px;
-    background: #f3f4f6;
-    margin-bottom: 0.4rem;
+    overflow-x: auto; overflow-y: visible; border: 1.5px solid #9ca3af;
+    border-radius: 10px; background: #f3f4f6; margin-bottom: 0.5rem; padding-bottom: 4px;
   }
-  .plan-table {
-    border-collapse: collapse;
-    font-size: 0.78rem;
-    color: #1f2937;
-    background: #f3f4f6;
-    min-width: 100%;
-  }
+  .plan-table { border-collapse: collapse; font-size: 0.85rem; color: #1f2937; background: #f3f4f6; }
   .plan-table th, .plan-table td {
-    border: 1px solid #c4c9d1;
-    padding: 2px 4px;
-    text-align: center;
-    vertical-align: middle;
-    background: #f3f4f6;
+    border: 1px solid #c4c9d1; padding: 3px 5px; text-align: center; vertical-align: middle; background: #f3f4f6;
   }
-  .plan-table thead th {
-    background: #e5e7eb;
-    font-weight: 600;
-  }
+  .plan-table thead th { background: #e5e7eb; font-weight: 600; }
   .plan-table th.vert {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    height: 130px;
-    max-width: 28px;
-    min-width: 22px;
-    white-space: nowrap;
-    font-size: 0.72rem;
-    letter-spacing: 0.02em;
-    padding: 6px 2px;
+    writing-mode: vertical-rl; transform: rotate(180deg); height: 160px;
+    min-width: 34px; max-width: 42px; white-space: nowrap; font-size: 0.82rem;
+    letter-spacing: 0.03em; padding: 8px 4px;
   }
-  .plan-table th.horiz {
-    min-width: 26px;
-    max-width: 36px;
-    font-size: 0.7rem;
-    white-space: nowrap;
-  }
-  .plan-table th.corner {
-    background: #e5e7eb;
-    min-width: 120px;
-    text-align: left;
-    padding-left: 8px;
-  }
+  .plan-table th.horiz { min-width: 34px; max-width: 48px; font-size: 0.78rem; white-space: nowrap; }
+  .plan-table th.corner { background: #e5e7eb; min-width: 140px; text-align: left; padding-left: 10px; font-size: 0.85rem; }
   .plan-table td.rider {
-    text-align: left;
-    font-weight: 500;
-    white-space: nowrap;
-    min-width: 130px;
-    padding-left: 8px;
-    background: #eef0f3;
+    text-align: left; font-weight: 500; white-space: nowrap; min-width: 140px; padding-left: 10px; background: #eef0f3;
   }
-  .plan-table td.days {
-    min-width: 36px;
-    font-weight: 600;
-    background: #eef0f3;
-  }
-  .plan-table td.days.over {
-    background: #fecaca;
-    color: #991b1b;
-  }
-  .plan-table td.xcell {
-    min-width: 24px;
-    max-width: 30px;
-    font-weight: 700;
-  }
-  .plan-table td.xcell.mark {
-    background: #bbf7d0;
-    color: #14532d;
-  }
-  .plan-table td.xcell.conflict {
-    background: #fecaca;
-    color: #991b1b;
-  }
-  .plan-table td.xcell.full {
-    background: #d1fae5;
-  }
+  .plan-table td.days { min-width: 42px; font-weight: 600; background: #eef0f3; }
+  .plan-table td.days.over { background: #fecaca; color: #991b1b; }
+  .plan-table td.xcell { min-width: 32px; max-width: 40px; font-weight: 700; font-size: 0.9rem; }
+  .plan-table td.xcell.mark { background: #bbf7d0; color: #14532d; }
+  .plan-table td.xcell.conflict { background: #fecaca; color: #991b1b; }
+  .plan-table td.xcell.full { background: #d1fae5; }
   .plan-table th.occ-ok { background: #dcfce7; color: #166534; }
   .plan-table th.occ-full { background: #86efac; color: #14532d; font-weight: 700; }
   .plan-table th.occ-over { background: #fecaca; color: #991b1b; font-weight: 700; }
-
-  .plan-footer {
-    font-size: 0.78rem;
-    color: #4b5563;
-    padding: 6px 4px 2px 4px;
+  .plan-footer { font-size: 0.8rem; color: #4b5563; padding: 6px 4px; }
+  .eign-wrap {
+    overflow-x: auto; border: 1.5px solid #9ca3af; border-radius: 10px; background: #f3f4f6; margin-bottom: 0.5rem;
   }
+  .eign-table { border-collapse: collapse; font-size: 0.72rem; color: #1f2937; }
+  .eign-table th, .eign-table td { border: 1px solid #c4c9d1; padding: 2px 4px; text-align: center; background: #f3f4f6; }
+  .eign-table th.vert {
+    writing-mode: vertical-rl; transform: rotate(180deg); height: 120px;
+    min-width: 26px; max-width: 32px; font-size: 0.7rem; background: #e5e7eb;
+  }
+  .eign-table th.corner { min-width: 130px; text-align: left; padding-left: 8px; background: #e5e7eb; }
+  .eign-table td.rider { text-align: left; white-space: nowrap; padding-left: 8px; background: #eef0f3; font-weight: 500; }
 </style>
 """, unsafe_allow_html=True)
-
 
 def parse_date_range(s, year=2026):
     if not s or not isinstance(s, str):
@@ -228,19 +121,13 @@ def parse_date_range(s, year=2026):
     m = re.match(r"^(\d{1,2})\.-(\d{1,2})\.(\d{1,2})$", s)
     if m:
         try:
-            return (
-                datetime(year, int(m.group(3)), int(m.group(1))),
-                datetime(year, int(m.group(3)), int(m.group(2))),
-            )
+            return (datetime(year, int(m.group(3)), int(m.group(1))), datetime(year, int(m.group(3)), int(m.group(2))))
         except ValueError:
             return None, None
     m = re.match(r"^(\d{1,2})\.(\d{1,2})\.-(\d{1,2})\.(\d{1,2})$", s)
     if m:
         try:
-            return (
-                datetime(year, int(m.group(2)), int(m.group(1))),
-                datetime(year, int(m.group(4)), int(m.group(3))),
-            )
+            return (datetime(year, int(m.group(2)), int(m.group(1))), datetime(year, int(m.group(4)), int(m.group(3))))
         except ValueError:
             return None, None
     return None, None
@@ -255,7 +142,6 @@ def ranges_overlap(a0, a1, b0, b1):
 @st.cache_data
 def load_all(path: str):
     wb = openpyxl.load_workbook(path, data_only=True)
-
     ws = wb["Fahrerwerte"]
     riders = []
     for r in range(4, 50):
@@ -355,23 +241,6 @@ def load_all(path: str):
         })
     df_fa = pd.DataFrame(fa)
 
-    ws = wb["Fahrerbewertung"]
-    eign_races = []
-    for c in range(2, 60):
-        n = ws.cell(3, c).value
-        if n is None:
-            break
-        eign_races.append(str(n).strip())
-    eign_rows = []
-    for i, rider in enumerate(riders):
-        r = 4 + i
-        row = {"Fahrer": rider["Name"]}
-        for j, rn in enumerate(eign_races):
-            val = ws.cell(r, 2 + j).value
-            row[rn] = val if val is not None else ""
-        eign_rows.append(row)
-    df_eign = pd.DataFrame(eign_rows)
-
     ws = wb["KI-Regelwerk"]
     lines = []
     for r in range(1, min(80, ws.max_row + 1)):
@@ -384,14 +253,69 @@ def load_all(path: str):
     regel_text = "\n\n".join(lines[:60]) if lines else "KI-Regelwerk – siehe Excel."
 
     return {
-        "fahrerwerte": df_fw,
-        "rennprofil": df_rp,
-        "planung": df_plan,
-        "analyse": df_fa,
-        "eignung": df_eign,
-        "races": races,
-        "regelwerk": regel_text,
+        "fahrerwerte": df_fw, "rennprofil": df_rp, "planung": df_plan,
+        "analyse": df_fa, "races": races, "regelwerk": regel_text,
     }
+
+
+def _num(v, default=0):
+    try:
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return default
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def compute_eignung(df_fw, df_rp, races):
+    profile = {}
+    for _, r in df_rp.iterrows():
+        key = str(r["Rennen"]).strip()
+        profile[key] = {
+            "berg": _num(r.get("Bergfaktor"), 5),
+            "sprint": _num(r.get("Sprintfaktor"), 5),
+            "huegel": _num(r.get("Hügelfaktor"), 5),
+            "tt": _num(r.get("TT-Faktor"), 3),
+            "ksp": 8 if str(r.get("Kopfsteinpflaster", "")).lower() in ("ja", "teilweise") else 2,
+        }
+
+    def factors_for(race_name):
+        if race_name in profile:
+            return profile[race_name]
+        rn = race_name.lower()
+        for k, v in profile.items():
+            if k.lower() in rn or rn in k.lower():
+                return v
+        return {"berg": 5, "sprint": 5, "huegel": 5, "tt": 3, "ksp": 2}
+
+    rows = []
+    for _, rider in df_fw.iterrows():
+        be = _num(rider.get("BE"), 70)
+        sp = _num(rider.get("SP"), 70)
+        hug = _num(rider.get("HÜG"), 70)
+        zf = _num(rider.get("ZF"), 70)
+        ksp = _num(rider.get("KSP"), 70)
+        row = {"Fahrer": rider["Name"]}
+        for race in races:
+            f = factors_for(race["name"])
+            wsum = f["berg"] + f["sprint"] + f["huegel"] + f["tt"] + f["ksp"] or 1
+            raw = (be * f["berg"] + sp * f["sprint"] + hug * f["huegel"] + zf * f["tt"] + ksp * f["ksp"]) / wsum
+            row[race["name"]] = int(max(0, min(100, round(raw))))
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def score_color(score):
+    s = max(0, min(100, int(score)))
+    if s >= 80:
+        return "#86efac", "#14532d"
+    if s >= 65:
+        return "#bbf7d0", "#166534"
+    if s >= 50:
+        return "#fef08a", "#854d0e"
+    if s >= 35:
+        return "#fdba74", "#9a3412"
+    return "#fecaca", "#991b1b"
 
 
 def compute_renntage(plan, races):
@@ -426,39 +350,27 @@ def build_plan_html(plan, races, renntage, occ, conflicts):
     for race in races:
         cells.append(f'<th class="vert" title="{esc(race["name"])}">{esc(race["name"])}</th>')
     rows.append("<tr>" + "".join(cells) + "</tr>")
-
     cells = ['<th class="corner"></th>', '<th class="corner"></th>']
     for race in races:
         cells.append(f'<th class="vert">{esc(race["datum"])}</th>')
     rows.append("<tr>" + "".join(cells) + "</tr>")
-
     cells = ['<th class="corner"></th>', '<th class="corner"></th>']
     for race in races:
         cells.append(f'<th class="horiz">{race["etappen"]} Et.</th>')
     rows.append("<tr>" + "".join(cells) + "</tr>")
-
     cells = ['<th class="corner"></th>', '<th class="corner"></th>']
     for race in races:
         cnt = occ[race["name"]]
         label = f"{cnt}/{MAX_RIDERS}"
-        if cnt > MAX_RIDERS:
-            cls = "horiz occ-over"
-        elif cnt == MAX_RIDERS:
-            cls = "horiz occ-full"
-        else:
-            cls = "horiz occ-ok"
+        cls = "horiz occ-over" if cnt > MAX_RIDERS else ("horiz occ-full" if cnt == MAX_RIDERS else "horiz occ-ok")
         cells.append(f'<th class="{cls}">{label}</th>')
     rows.append("<tr>" + "".join(cells) + "</tr>")
     thead = "<thead>" + "".join(rows) + "</thead>"
-
     body_rows = []
     for idx, row in plan.iterrows():
         days = int(renntage.loc[idx]) if idx in renntage.index else 0
         day_cls = "days over" if days > MAX_RENNTAGE else "days"
-        cells = [
-            f'<td class="rider">{esc(str(row["Fahrer"]))}</td>',
-            f'<td class="{day_cls}">{days}</td>',
-        ]
+        cells = [f'<td class="rider">{esc(str(row["Fahrer"]))}</td>', f'<td class="{day_cls}">{days}</td>']
         for race in races:
             marked = row.get(race["name"]) == "X"
             conf = (idx, race["name"]) in conflicts
@@ -467,15 +379,29 @@ def build_plan_html(plan, races, renntage, occ, conflicts):
             if marked and conf:
                 classes.append("conflict")
             elif marked and cnt >= MAX_RIDERS:
-                classes.append("full")
-                classes.append("mark")
+                classes.extend(["full", "mark"])
             elif marked:
                 classes.append("mark")
-            text = "X" if marked else ""
-            cells.append(f'<td class="{" ".join(classes)}">{text}</td>')
+            cells.append(f'<td class="{" ".join(classes)}">{"X" if marked else ""}</td>')
         body_rows.append("<tr>" + "".join(cells) + "</tr>")
-    tbody = "<tbody>" + "".join(body_rows) + "</tbody>"
-    return f'<div class="plan-wrap"><table class="plan-table">{thead}{tbody}</table></div>'
+    return f'<div class="plan-wrap"><table class="plan-table">{thead}<tbody>{"".join(body_rows)}</tbody></table></div>'
+
+
+def build_eign_html(df_eign, races):
+    esc = html_lib.escape
+    cells = ['<th class="corner">Fahrer</th>']
+    for race in races:
+        cells.append(f'<th class="vert" title="{esc(race["name"])}">{esc(race["name"][:18])}</th>')
+    thead = "<thead><tr>" + "".join(cells) + "</tr></thead>"
+    body = []
+    for _, row in df_eign.iterrows():
+        cells = [f'<td class="rider">{esc(str(row["Fahrer"]))}</td>']
+        for race in races:
+            sc = int(row.get(race["name"], 0) or 0)
+            bg, fg = score_color(sc)
+            cells.append(f'<td style="background:{bg};color:{fg};font-weight:600;min-width:28px;">{sc}</td>')
+        body.append("<tr>" + "".join(cells) + "</tr>")
+    return f'<div class="eign-wrap"><table class="eign-table">{thead}<tbody>{"".join(body)}</tbody></table></div>'
 
 
 if "data" not in st.session_state:
@@ -491,31 +417,25 @@ plan = st.session_state.plan
 occ = occupancy(plan, races)
 conflicts = find_overlaps(plan, races)
 renntage = compute_renntage(plan, races)
+df_eign = compute_eignung(data["fahrerwerte"], data["rennprofil"], races)
 
-c_logo, c_search, c_ki, c_imp, c_exp, c_run, c_form = st.columns(
-    [2.0, 1.4, 1.2, 1.0, 1.0, 1.4, 1.4]
-)
-
+c_logo, c_search, c_ki, c_imp, c_exp, c_run, c_form = st.columns([2.0, 1.4, 1.2, 1.0, 1.0, 1.4, 1.4])
 with c_logo:
     if LOGO.exists():
         st.image(str(LOGO), width=280)
     else:
         st.markdown("### SIBOS")
-
 with c_search:
     st.text_input("Suche", placeholder="Suchen…", label_visibility="collapsed", key="search")
-
 with c_ki:
     st.session_state.ai = st.selectbox(
         "KI",
         ["Grok (xAI)", "Claude (Anthropic)", "GPT-4o (OpenAI)", "Gemini (Google)", "Lokal (Ollama)"],
         label_visibility="collapsed",
     )
-
 with c_imp:
     if st.button("Importieren", use_container_width=True):
         st.session_state.show_import = not st.session_state.show_import
-
 with c_exp:
     if st.button("Exportieren", use_container_width=True):
         buf = io.BytesIO()
@@ -524,29 +444,20 @@ with c_exp:
             data["fahrerwerte"].to_excel(w, sheet_name="Fahrerwerte", index=False)
             data["rennprofil"].to_excel(w, sheet_name="Rennprofil", index=False)
             data["analyse"].to_excel(w, sheet_name="Fahreranalyse", index=False)
-            data["eignung"].to_excel(w, sheet_name="Fahrerbewertung", index=False)
+            df_eign.to_excel(w, sheet_name="Fahrerbewertung", index=False)
         st.download_button(
-            "Download Excel",
-            data=buf.getvalue(),
+            "Download Excel", data=buf.getvalue(),
             file_name="SIBOS_Saisonplanung_2026.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
-
 with c_run:
     if st.button("KI-Planung starten", type="primary", use_container_width=True):
-        st.session_state.msg = (
-            f"**KI-Planung** mit {st.session_state.ai}: Regelwerk Teil A "
-            "(alte X löschen → neue setzen → QC). Vollständige Automatik folgt."
-        )
+        st.session_state.msg = f"**KI-Planung** mit {st.session_state.ai}: Regelwerk Teil A. Vollständige Automatik folgt."
         st.toast("KI-Planung vorbereitet", icon="⚡")
-
 with c_form:
     if st.button("Formkurven berechnen", type="secondary", use_container_width=True):
-        st.session_state.msg = (
-            "**Formkurven:** Separater Schritt nach der Saisonplanung (Teil B Regelwerk). "
-            "Umsetzung folgt."
-        )
+        st.session_state.msg = "**Formkurven:** Separater Schritt nach der Saisonplanung (Teil B)."
         st.toast("Formkurven-Schritt vorbereitet", icon="📈")
 
 if st.session_state.show_import:
@@ -566,27 +477,14 @@ if st.session_state.show_import:
             st.rerun()
     with ic2:
         st.markdown("**Foto / Screenshot**")
-        up_img = st.file_uploader(
-            "Bild wählen", type=["png", "jpg", "jpeg", "webp"], key="up_img", label_visibility="collapsed"
-        )
+        up_img = st.file_uploader("Bild wählen", type=["png", "jpg", "jpeg", "webp"], key="up_img", label_visibility="collapsed")
         if up_img is not None:
-            st.session_state.msg = (
-                f"Foto „{up_img.name}“ empfangen. KI-OCR liest Namen + Werte und trägt sie in "
-                "Fahrerwerte ein – folgt in der nächsten Version."
-            )
+            st.session_state.msg = f"Foto „{up_img.name}“ empfangen. KI-OCR folgt in der nächsten Version."
             st.session_state.show_import = False
-
     st.markdown(
-        """
-        <div class="import-hint">
-        <b>Anleitung Foto / Screenshot</b><br>
-        Fotografiere den Bildschirm im Spiel (PCM), auf dem die <b>Fahrerwerte</b> stehen:<br>
-        • linke Spalte = <b>Fahrernamen</b><br>
-        • daneben die Zahlen: <b>EB, BE, MG, HÜG, ZF, PRL, KSP, SP, BES, ABF, ASR, AUS, ZÄH, REG</b><br>
-        Am besten so, dass Namen und alle Zahlen gut lesbar sind.<br>
-        Die App übernimmt die Namen und Werte dann automatisch ins Blatt <b>Fahrerwerte</b>.
-        </div>
-        """,
+        '<div class="import-hint"><b>Anleitung Foto / Screenshot</b><br>'
+        "Fotografiere den Bildschirm im Spiel (PCM) mit <b>Fahrernamen + Werte</b> "
+        "(EB, BE, MG, HÜG, ZF, PRL, KSP, SP, …). Die App übernimmt sie ins Blatt Fahrerwerte.</div>",
         unsafe_allow_html=True,
     )
 
@@ -595,100 +493,68 @@ if st.session_state.msg:
 
 st.markdown("---")
 st.markdown("### PCM Season Planner")
-
-st.markdown(
-    build_plan_html(plan, races, renntage, occ, conflicts),
-    unsafe_allow_html=True,
-)
-
+st.markdown(build_plan_html(plan, races, renntage, occ, conflicts), unsafe_allow_html=True)
 st.markdown(
     '<div class="plan-footer">'
     "Kopfzeilen: <b>Rennen → Datum → Etappen → Belegung (aktuell/max)</b> · "
-    "Grün = Maximum erreicht · Rot = überschritten · "
-    "Rote X = zeitliche Überschneidung · Renntage ab 71 = über Maximum (70)"
+    "Grün = Maximum · Rot = überschritten / Überschneidung · Renntage ab 71 = über Maximum · "
+    "Tabelle horizontal scrollbar"
     "</div>",
     unsafe_allow_html=True,
 )
-
 if conflicts:
     names = sorted({plan.loc[i, "Fahrer"] for i, _ in conflicts})
     st.warning("Zeitliche Überschneidung bei: " + ", ".join(names))
 
-st.caption("X setzen / entfernen (manuell):")
-edit_df = plan.copy()
-edit_df.insert(1, "Renntage", renntage)
-edited = st.data_editor(
-    edit_df,
-    use_container_width=True,
-    height=1150,
-    hide_index=True,
-    disabled=["Fahrer", "Renntage"],
-    key="plan_editor",
-)
-
-if not edited.equals(edit_df):
-    new_plan = plan.copy()
-    for race in races:
-        if race["name"] in edited.columns:
-            new_plan[race["name"]] = edited[race["name"]].apply(
-                lambda v: "X" if str(v).strip().upper() in ("X", "×", "1") else ""
-            )
-    st.session_state.plan = new_plan
-    st.rerun()
+st.markdown("#### X setzen / entfernen")
+ec1, ec2 = st.columns([1.2, 2.8])
+with ec1:
+    rider_names = plan["Fahrer"].tolist()
+    sel_rider = st.selectbox("Fahrer", rider_names, key="edit_rider")
+with ec2:
+    idx = plan.index[plan["Fahrer"] == sel_rider][0]
+    current = [r["name"] for r in races if plan.loc[idx, r["name"]] == "X"]
+    race_names = [r["name"] for r in races]
+    new_sel = st.multiselect(
+        "Rennen für diesen Fahrer (anhaken = X)",
+        options=race_names, default=current, key=f"ms_{sel_rider}",
+    )
+    if st.button("Übernehmen", type="primary", key="apply_x"):
+        new_plan = plan.copy()
+        for rname in race_names:
+            new_plan.loc[idx, rname] = "X" if rname in new_sel else ""
+        st.session_state.plan = new_plan
+        st.session_state.msg = f"X für **{sel_rider}** aktualisiert."
+        st.rerun()
 
 st.markdown("---")
 st.markdown("### Weitere Tabellenblätter")
-
 t1, t2, t3, t4, t5, t6 = st.tabs(
     ["Rennprofil", "Fahrerwerte", "Fahreranalyse", "Eignung", "Formkurven", "Regelwerk"]
 )
-
 TABLE_H = 1100
-
 with t1:
     st.caption("Excel-Blatt „Rennprofil“")
     st.dataframe(data["rennprofil"], use_container_width=True, height=TABLE_H, hide_index=True)
-
 with t2:
     st.caption("Excel-Blatt „Fahrerwerte“")
     st.dataframe(data["fahrerwerte"], use_container_width=True, height=TABLE_H, hide_index=True)
-
 with t3:
     st.caption("Excel-Blatt „Fahreranalyse“")
     st.dataframe(data["analyse"], use_container_width=True, height=TABLE_H, hide_index=True)
-
 with t4:
-    st.caption("Excel-Blatt „Fahrerbewertung“ – Eignungsmatrix")
-    eign = data["eignung"]
-    numeric_cols = [c for c in eign.columns if c != "Fahrer"]
-    has_values = any(
-        eign[c].apply(lambda x: isinstance(x, (int, float)) and not pd.isna(x)).any()
-        for c in numeric_cols
+    st.caption(
+        "Eignungsmatrix (0–100): Fahrerwerte × Rennprofil (Berg/Sprint/Hügel/TT/Pflaster) – "
+        "Farbskala Rot → Gelb → Grün"
     )
-    if has_values:
-        st.dataframe(eign, use_container_width=True, height=TABLE_H, hide_index=True)
-    else:
-        st.info(
-            "Die Eignungsmatrix ist im Excel aktuell leer (Formeln noch nicht berechnet). "
-            "Vorschau der relevanten Fahrerwerte:"
-        )
-        st.dataframe(
-            data["fahrerwerte"][["Name", "BE", "HÜG", "SP", "ZF", "KSP", "Fahrerrolle"]],
-            use_container_width=True,
-            height=TABLE_H,
-            hide_index=True,
-        )
-
+    st.markdown(build_eign_html(df_eign, races), unsafe_allow_html=True)
+    st.caption("Horizontal scrollbar · aus Fahrerwerte + Rennprofil berechnet")
 with t5:
-    st.caption("Excel-Blatt „Formkurven“ – per Button „Formkurven berechnen“ (Teil B Regelwerk)")
-    st.info(
-        "Formkurven werden laut KI-Regelwerk in einem **separaten Schritt nach der Saisonplanung** "
-        "berechnet. Button oben rechts nutzen, sobald die Logik aktiv ist."
-    )
-
+    st.caption("Formkurven – Button „Formkurven berechnen“ (Teil B Regelwerk)")
+    st.info("Formkurven werden laut Regelwerk in einem separaten Schritt nach der Saisonplanung berechnet.")
 with t6:
     st.caption("Excel-Blatt „KI-Regelwerk“ – Auszug")
     st.text_area("Regelwerk", value=data["regelwerk"], height=500, label_visibility="collapsed")
 
 st.markdown("---")
-st.caption("SIBOS Season Planner 2026 · Daten aus PCM_Saisonplaner.xlsx")
+st.caption("PCM Season Planner 2026 · SIBOS · Daten aus PCM_Saisonplaner.xlsx")
